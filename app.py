@@ -4,6 +4,7 @@ from datetime import datetime
 from pymongo.errors import ServerSelectionTimeoutError
 from dotenv import load_dotenv
 from flask_cors import CORS
+import certifi
 import os
 
 load_dotenv()
@@ -12,7 +13,11 @@ app = Flask(__name__)
 CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io/my-resume-app"])
 
 try:
-    client = MongoClient(os.environ.get("MONGO_URI"), serverSelectionTimeoutMS=5000)
+    client = MongoClient(
+        os.environ.get("MONGO_URI"),
+        tls=True,
+        tlsCAFile=certifi.where()
+    )
     client.server_info()
 except ServerSelectionTimeoutError as err:
     print("Failed to connect to MongoDB:", err)
