@@ -10,7 +10,7 @@ import os
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io/my-resume-app"])
+CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io"])
 
 try:
     client = MongoClient(
