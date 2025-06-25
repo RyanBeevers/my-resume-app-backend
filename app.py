@@ -59,7 +59,7 @@ def add_star():
         "$set": {"last_updated": datetime.utcnow()}
     }
 
-    if updated_stars == all_star_ids:
+    if updated_stars == all_star_ids and not progress.get("completed"):
         update_data["$set"].update({
             "completed": True,
             "completed_at": datetime.utcnow()
