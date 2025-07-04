@@ -10,7 +10,7 @@ import os
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io"])
+CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io*"])
 
 try:
     client = MongoClient(
@@ -110,6 +110,37 @@ def mark_complete():
     )
     return jsonify({"status": "completed", "modified_count": result.modified_count})
 
+@app.route('/ip-summary', methods=['GET'])
+def get_ip_summary():
+    pipeline = [
+        {"$sort": {"timestamp": -1}},  # Sort by latest first
+        {
+            "$group": {
+                "_id": "$ip_address",
+                "visit_count": {"$sum": 1},
+                "last_visit": {"$first": "$timestamp"},
+                "user_id": {"$first": "$user_id"}  # Most recent user_id per IP
+            }
+        },
+        {"$sort": {"last_visit": -1}}  # Final sort by newest visit
+    ]
+
+    summary = list(visits_col.aggregate(pipeline))
+    for item in summary:
+        item["ip_address"] = item.pop("_id")
+        if isinstance(item["last_visit"], datetime):
+            item["last_visit"] = item["last_visit"].isoformat()
+
+    return jsonify({"summary": summary})
+
+@app.route('/visits/<ip_address>', methods=['GET'])
+def get_visits_by_ip(ip_address):
+    visits = list(visits_col.find({"ip_address": ip_address}).sort("timestamp", -1))
+    for visit in visits:
+        visit["_id"] = str(visit["_id"])
+        if isinstance(visit["timestamp"], datetime):
+            visit["timestamp"] = visit["timestamp"].isoformat()
+    return jsonify({"visits": visits})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
