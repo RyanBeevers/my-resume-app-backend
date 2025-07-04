@@ -110,32 +110,32 @@ def mark_complete():
     )
     return jsonify({"status": "completed", "modified_count": result.modified_count})
 
-@app.route('/ip-summary', methods=['GET'])
-def get_ip_summary():
+@app.route('/user-summary', methods=['GET'])
+def get_user_summary():
     pipeline = [
-        {"$sort": {"timestamp": -1}},  # Sort by latest first
+        {"$sort": {"timestamp": -1}},  # Latest visits first
         {
             "$group": {
-                "_id": "$ip_address",
+                "_id": "$user_id",
                 "visit_count": {"$sum": 1},
                 "last_visit": {"$first": "$timestamp"},
-                "user_id": {"$first": "$user_id"}  # Most recent user_id per IP
+                "ip_address": {"$first": "$ip_address"}  # Most recent IP
             }
         },
-        {"$sort": {"last_visit": -1}}  # Final sort by newest visit
+        {"$sort": {"last_visit": -1}}
     ]
 
     summary = list(visits_col.aggregate(pipeline))
     for item in summary:
-        item["ip_address"] = item.pop("_id")
+        item["user_id"] = item.pop("_id")
         if isinstance(item["last_visit"], datetime):
             item["last_visit"] = item["last_visit"].isoformat()
 
     return jsonify({"summary": summary})
 
-@app.route('/visits/<ip_address>', methods=['GET'])
-def get_visits_by_ip(ip_address):
-    visits = list(visits_col.find({"ip_address": ip_address}).sort("timestamp", -1))
+@app.route('/visits/<user_id>', methods=['GET'])
+def get_visits_by_user(user_id):
+    visits = list(visits_col.find({"user_id": user_id}).sort("timestamp", -1))
     for visit in visits:
         visit["_id"] = str(visit["_id"])
         if isinstance(visit["timestamp"], datetime):
