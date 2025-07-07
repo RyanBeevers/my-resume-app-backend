@@ -4,6 +4,7 @@ from datetime import datetime
 from pymongo.errors import ServerSelectionTimeoutError
 from dotenv import load_dotenv
 from flask_cors import CORS
+from user_agents import parse
 import certifi
 import os
 
@@ -33,6 +34,8 @@ def track_visit():
 
     forwarded_for = request.headers.get('X-Forwarded-For', request.remote_addr)
     ip_address = forwarded_for.split(',')[0].strip()
+    ua_string = request.headers.get('User-Agent', '')
+    user_agent = parse(ua_string)
 
     visit = {
         "user_id": data.get("user_id"),
@@ -41,10 +44,10 @@ def track_visit():
         "user_agent": request.headers.get('User-Agent'),
         "accept_language": request.headers.get('Accept-Language'),
         "referer": request.headers.get('Referer'),
-        "platform": request.user_agent.platform,
-        "browser": request.user_agent.browser,
-        "version": request.user_agent.version,
-        "mobile": request.user_agent.platform in ['android', 'iphone'],
+        "platform": user_agent.os.family,
+        "browser": user_agent.browser.family,
+        "version": user_agent.browser.version_string,
+        "mobile": user_agent.is_mobile,
         "timestamp": datetime.utcnow()
     }
 
