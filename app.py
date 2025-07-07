@@ -30,12 +30,24 @@ progress_col = db["progress"]
 @app.route('/track-visit', methods=['POST'])
 def track_visit():
     data = request.json
+
+    forwarded_for = request.headers.get('X-Forwarded-For', request.remote_addr)
+    ip_address = forwarded_for.split(',')[0].strip()
+
     visit = {
         "user_id": data.get("user_id"),
-        "ip_address": request.remote_addr,
+        "username": data.get("username") or "anonymous",
+        "ip_address": ip_address,
         "user_agent": request.headers.get('User-Agent'),
+        "accept_language": request.headers.get('Accept-Language'),
+        "referer": request.headers.get('Referer'),
+        "platform": request.user_agent.platform,
+        "browser": request.user_agent.browser,
+        "version": request.user_agent.version,
+        "mobile": request.user_agent.platform in ['android', 'iphone'],
         "timestamp": datetime.utcnow()
     }
+
     visits_col.insert_one(visit)
     return jsonify({"status": "visit logged"})
 
@@ -109,17 +121,21 @@ def mark_complete():
         upsert=True
     )
     return jsonify({"status": "completed", "modified_count": result.modified_count})
-
 @app.route('/user-summary', methods=['GET'])
 def get_user_summary():
     pipeline = [
-        {"$sort": {"timestamp": -1}},  # Latest visits first
+        {"$sort": {"timestamp": -1}},  # Ensures latest values appear first
         {
             "$group": {
                 "_id": "$user_id",
                 "visit_count": {"$sum": 1},
                 "last_visit": {"$first": "$timestamp"},
-                "ip_address": {"$first": "$ip_address"}  # Most recent IP
+                "ip_address": {"$first": "$ip_address"},
+                "username": {"$first": "$username"},
+                "platform": {"$first": "$platform"},
+                "browser": {"$first": "$browser"},
+                "version": {"$first": "$version"},
+                "mobile": {"$first": "$mobile"},
             }
         },
         {"$sort": {"last_visit": -1}}
