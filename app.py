@@ -7,11 +7,15 @@ from flask_cors import CORS
 from user_agents import parse
 import certifi
 import os
+import subprocess
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io*", "http://raspberrypi.local:4200"])
+
+LLAMA_BIN = "/home/ryan2914/llama.cpp/build/bin/llama-run"
+MODEL_PATH = "file:///home/ryan2914/llama.cpp/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
 
 try:
     client = MongoClient(
@@ -160,6 +164,24 @@ def get_visits_by_user(user_id):
         if isinstance(visit["timestamp"], datetime):
             visit["timestamp"] = visit["timestamp"].isoformat()
     return jsonify({"visits": visits})
+
+@app.route('/generate', methods=['POST'])
+def generate_resume_text():
+    data = request.json
+    prompt = data.get("prompt", "")
+    if not prompt:
+        return jsonify({"error": "Missing prompt"}), 400
+
+    try:
+        result = subprocess.run(
+            [LLAMA_BIN, MODEL_PATH, prompt],
+            capture_output=True, text=True, timeout=60
+        )
+        return jsonify({"response": result.stdout.strip()})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Model timed out"}), 504
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
