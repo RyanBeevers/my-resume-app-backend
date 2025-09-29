@@ -175,7 +175,7 @@ def generate_resume_text():
     try:
         result = subprocess.run(
             [LLAMA_BIN, MODEL_PATH, prompt],
-            capture_output=True, text=True, timeout=60
+            capture_output=True, text=True, timeout=300
         )
         return jsonify({"response": result.stdout.strip()})
     except subprocess.TimeoutExpired:
