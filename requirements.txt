@@ -5,3 +5,4 @@ flask-cors
 certifi
 dnspython
 user_agentsgi
+docx

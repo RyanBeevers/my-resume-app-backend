@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from pymongo import MongoClient
 from datetime import datetime
 from pymongo.errors import ServerSelectionTimeoutError
@@ -8,6 +8,7 @@ from user_agents import parse
 import certifi
 import os
 import subprocess
+from docx import Document
 
 load_dotenv()
 
@@ -187,3 +188,88 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
 
+# Replace a single placeholder in doc
+def replace_placeholder(doc, placeholder, replacement):
+    for paragraph in doc.paragraphs:
+        if placeholder in paragraph.text:
+            paragraph.text = paragraph.text.replace(placeholder, replacement)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                if placeholder in cell.text:
+                    cell.text = cell.text.replace(placeholder, replacement)
+    return doc
+
+# Add bulleted list under a placeholder
+def add_bullets(doc, placeholder, bullets):
+    for paragraph in doc.paragraphs:
+        if placeholder in paragraph.text:
+            parent = paragraph._element
+            for b in bullets:
+                doc.add_paragraph(b, style='List Bullet')
+            paragraph.text = ''  # remove placeholder
+    return doc
+
+def build_resume(json_data, template_path, output_path):
+    doc = Document(template_path)
+
+    # Replace header & summary
+    doc = replace_placeholder(doc, '{{NAME}}', json_data['resume']['header']['name'])
+    doc = replace_placeholder(doc, '{{TITLE}}', json_data['resume']['header']['title'])
+    doc = replace_placeholder(doc, '{{TAGLINE}}', json_data['resume']['header']['tagline'])
+    doc = replace_placeholder(doc, '{{LOCATION_NOTE}}', json_data['resume']['header']['location_note'])
+    doc = replace_placeholder(doc, '{{SUMMARY}}', json_data['resume']['summary'])
+
+    # Experience
+    for idx, exp in enumerate(json_data['resume']['experience']):
+        placeholder = f'{{EXP_{idx+1}}}'
+        exp_text = f"{exp['company']}, {exp['role']} ({exp['dates']})"
+        doc = replace_placeholder(doc, placeholder, exp_text)
+        doc = add_bullets(doc, placeholder, exp['bullets'])
+
+    # Skills
+    skills = json_data['resume']['skills']
+    doc = replace_placeholder(doc, '{{FRONTEND_SKILLS}}', ', '.join(skills.get('frontend', [])))
+    doc = replace_placeholder(doc, '{{BACKEND_SKILLS}}', ', '.join(skills.get('backend', [])))
+    doc = replace_placeholder(doc, '{{CLOUD_DEVOPS_SKILLS}}', ', '.join(skills.get('cloud_devops', [])))
+    doc = replace_placeholder(doc, '{{SECURITY_AUTH_SKILLS}}', ', '.join(skills.get('security_auth', [])))
+    doc = replace_placeholder(doc, '{{DATABASE_SKILLS}}', ', '.join(skills.get('databases', [])))
+    doc = replace_placeholder(doc, '{{TOOLS_SKILLS}}', ', '.join(skills.get('tools_collaboration', [])))
+
+    doc.save(output_path)
+    return output_path
+
+def build_cover_letter(json_data, template_path, output_path):
+    doc = Document(template_path)
+
+    # Recipient
+    doc = replace_placeholder(doc, '{{COMPANY}}', json_data['cover_letter']['recipient']['company'])
+    doc = replace_placeholder(doc, '{{ROLE}}', json_data['cover_letter']['recipient']['role'])
+
+    # Body paragraphs
+    doc = replace_placeholder(doc, '{{OPENING_PARAGRAPH}}', json_data['cover_letter']['opening_paragraph'])
+    for i, para in enumerate(json_data['cover_letter']['body_paragraphs']):
+        placeholder = f'{{BODY_PARAGRAPH_{i+1}}}'
+        doc = replace_placeholder(doc, placeholder, para)
+
+    # Closing & signature
+    doc = replace_placeholder(doc, '{{CLOSING_PARAGRAPH}}', json_data['cover_letter']['closing_paragraph'])
+    doc = replace_placeholder(doc, '{{NAME}}', json_data['cover_letter']['signature']['name'])
+
+    doc.save(output_path)
+    return output_path
+
+from flask import Flask, request, send_file
+
+
+@app.route('/generate_docs', methods=['POST'])
+def generate_docs():
+    data = request.json  # {resume: {...}, cover_letter: {...}}
+
+    resume_path = build_resume(data['resume'], 'templates/resume_template.docx', 'outputs/resume.docx')
+    cover_path = build_cover_letter(data['cover_letter'], 'templates/cover_letter_template.docx', 'outputs/cover_letter.docx')
+
+    return {
+        'resume_path': resume_path,
+        'cover_letter_path': cover_path
+    }
