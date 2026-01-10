@@ -13,7 +13,7 @@ from docx import Document
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=[os.environ.get("NGROK_URL"), "http://localhost:4200", "https://ryanbeevers.github.io*", "http://raspberrypi.local:4200"])
+CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io*", "http://raspberrypi.local:4200"])
 
 LLAMA_BIN = "/home/ryan2914/llama.cpp/build/bin/llama-run"
 MODEL_PATH = "file:///home/ryan2914/llama.cpp/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
