@@ -213,22 +213,22 @@ def add_bullets(doc, placeholder, bullets):
 def build_resume(json_data, template_path, output_path):
     doc = Document(template_path)
 
-    # Replace header & summary
-    doc = replace_placeholder(doc, '{{NAME}}', json_data['resume']['header']['name'])
-    doc = replace_placeholder(doc, '{{TITLE}}', json_data['resume']['header']['title'])
-    doc = replace_placeholder(doc, '{{TAGLINE}}', json_data['resume']['header']['tagline'])
-    doc = replace_placeholder(doc, '{{LOCATION_NOTE}}', json_data['resume']['header']['location_note'])
-    doc = replace_placeholder(doc, '{{SUMMARY}}', json_data['resume']['summary'])
+    # Header & summary
+    doc = replace_placeholder(doc, '{{NAME}}', json_data['header']['name'])
+    doc = replace_placeholder(doc, '{{TITLE}}', json_data['header']['title'])
+    doc = replace_placeholder(doc, '{{TAGLINE}}', json_data['header']['tagline'])
+    doc = replace_placeholder(doc, '{{LOCATION_NOTE}}', json_data['header']['location_note'])
+    doc = replace_placeholder(doc, '{{SUMMARY}}', json_data['summary'])
 
     # Experience
-    for idx, exp in enumerate(json_data['resume']['experience']):
+    for idx, exp in enumerate(json_data['experience']):
         placeholder = f'{{EXP_{idx+1}}}'
         exp_text = f"{exp['company']}, {exp['role']} ({exp['dates']})"
         doc = replace_placeholder(doc, placeholder, exp_text)
         doc = add_bullets(doc, placeholder, exp['bullets'])
 
     # Skills
-    skills = json_data['resume']['skills']
+    skills = json_data['skills']
     doc = replace_placeholder(doc, '{{FRONTEND_SKILLS}}', ', '.join(skills.get('frontend', [])))
     doc = replace_placeholder(doc, '{{BACKEND_SKILLS}}', ', '.join(skills.get('backend', [])))
     doc = replace_placeholder(doc, '{{CLOUD_DEVOPS_SKILLS}}', ', '.join(skills.get('cloud_devops', [])))
@@ -243,18 +243,18 @@ def build_cover_letter(json_data, template_path, output_path):
     doc = Document(template_path)
 
     # Recipient
-    doc = replace_placeholder(doc, '{{COMPANY}}', json_data['cover_letter']['recipient']['company'])
-    doc = replace_placeholder(doc, '{{ROLE}}', json_data['cover_letter']['recipient']['role'])
+    doc = replace_placeholder(doc, '{{COMPANY}}', json_data['recipient']['company'])
+    doc = replace_placeholder(doc, '{{ROLE}}', json_data['recipient']['role'])
 
-    # Body paragraphs
-    doc = replace_placeholder(doc, '{{OPENING_PARAGRAPH}}', json_data['cover_letter']['opening_paragraph'])
-    for i, para in enumerate(json_data['cover_letter']['body_paragraphs']):
+    # Body
+    doc = replace_placeholder(doc, '{{OPENING_PARAGRAPH}}', json_data['opening_paragraph'])
+    for i, para in enumerate(json_data['body_paragraphs']):
         placeholder = f'{{BODY_PARAGRAPH_{i+1}}}'
         doc = replace_placeholder(doc, placeholder, para)
 
     # Closing & signature
-    doc = replace_placeholder(doc, '{{CLOSING_PARAGRAPH}}', json_data['cover_letter']['closing_paragraph'])
-    doc = replace_placeholder(doc, '{{NAME}}', json_data['cover_letter']['signature']['name'])
+    doc = replace_placeholder(doc, '{{CLOSING_PARAGRAPH}}', json_data['closing_paragraph'])
+    doc = replace_placeholder(doc, '{{NAME}}', json_data['signature']['name'])
 
     doc.save(output_path)
     return output_path
