@@ -13,9 +13,7 @@ from docx import Document
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-
-# CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io*", "http://raspberrypi.local:4200"])
+CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io*", "http://raspberrypi.local:4200"])
 
 LLAMA_BIN = "/home/ryan2914/llama.cpp/build/bin/llama-run"
 MODEL_PATH = "file:///home/ryan2914/llama.cpp/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
@@ -272,3 +270,7 @@ def generate_docs():
         'resume_path': resume_path,
         'cover_letter_path': cover_path
     }
+
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    return send_file(f"outputs/{filename}", as_attachment=True)
