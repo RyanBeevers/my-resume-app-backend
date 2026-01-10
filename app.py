@@ -250,7 +250,7 @@ def build_resume(json_data, template_path, output_path):
     doc = replace_placeholder(doc, '{{TOOLS_SKILLS}}', ', '.join(skills.get('tools_collaboration', [])))
 
     doc.save(output_path)
-    validate_docx(doc)
+    validate_docx(output_path)
     return output_path
 
 def build_cover_letter(json_data, template_path, output_path):
@@ -271,7 +271,7 @@ def build_cover_letter(json_data, template_path, output_path):
     doc = replace_placeholder(doc, '{{NAME}}', json_data['signature']['name'])
 
     doc.save(output_path)
-    validate_docx(doc)
+    validate_docx(output_path)
     return output_path
 
 @app.route('/generate_docs', methods=['POST'])
