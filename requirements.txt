@@ -6,3 +6,4 @@ certifi
 dnspython
 user_agentsgi
 docx
+zipfile

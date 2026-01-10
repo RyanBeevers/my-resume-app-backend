@@ -9,6 +9,7 @@ import certifi
 import os
 import subprocess
 from docx import Document
+from zipfile import ZipFile
 
 load_dotenv()
 
@@ -192,24 +193,35 @@ def generate_resume_text():
 # Replace a single placeholder in doc
 def replace_placeholder(doc, placeholder, replacement):
     for paragraph in doc.paragraphs:
-        if placeholder in paragraph.text:
-            paragraph.text = paragraph.text.replace(placeholder, replacement)
+        for run in paragraph.runs:
+            if placeholder in run.text:
+                run.text = run.text.replace(placeholder, replacement)
+
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
-                if placeholder in cell.text:
-                    cell.text = cell.text.replace(placeholder, replacement)
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        if placeholder in run.text:
+                            run.text = run.text.replace(placeholder, replacement)
+
     return doc
+
 
 # Add bulleted list under a placeholder
 def add_bullets(doc, placeholder, bullets):
     for paragraph in doc.paragraphs:
         if placeholder in paragraph.text:
-            parent = paragraph._element
-            for b in bullets:
-                doc.add_paragraph(b, style='List Bullet')
-            paragraph.text = ''  # remove placeholder
+            paragraph.text = paragraph.text.replace(placeholder, "")
+            for bullet in bullets:
+                p = paragraph.insert_paragraph_after(bullet)
+                p.style = 'List Bullet'
+            break
     return doc
+
+def validate_docx(path):
+    with ZipFile(path, 'r') as z:
+        z.testzip()
 
 def build_resume(json_data, template_path, output_path):
     doc = Document(template_path)
@@ -238,6 +250,7 @@ def build_resume(json_data, template_path, output_path):
     doc = replace_placeholder(doc, '{{TOOLS_SKILLS}}', ', '.join(skills.get('tools_collaboration', [])))
 
     doc.save(output_path)
+    validate_docx(doc)
     return output_path
 
 def build_cover_letter(json_data, template_path, output_path):
@@ -258,6 +271,7 @@ def build_cover_letter(json_data, template_path, output_path):
     doc = replace_placeholder(doc, '{{NAME}}', json_data['signature']['name'])
 
     doc.save(output_path)
+    validate_docx(doc)
     return output_path
 
 @app.route('/generate_docs', methods=['POST'])
