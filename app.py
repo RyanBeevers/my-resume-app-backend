@@ -258,21 +258,27 @@ def build_cover_letter(json_data, template_path, output_path):
 
 @app.route('/generate_docs', methods=['POST'])
 def generate_docs():
-    data = request.json  # {resume: {...}, cover_letter: {...}}
+    data = request.json
 
-    TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+    resume_template = os.path.join(TEMPLATE_DIR, "resume_template.docx")
+    cover_template = os.path.join(TEMPLATE_DIR, "cover_letter_template.docx")
 
-    resume_template_path = os.path.join(TEMPLATE_DIR, 'resume_template.docx')
-    cover_letter_template_path = os.path.join(TEMPLATE_DIR, 'cover_letter_template.docx')
+    resume_out = os.path.join(OUTPUT_DIR, "resume.docx")
+    cover_out = os.path.join(OUTPUT_DIR, "cover_letter.docx")
 
-    resume_path = build_resume(data['resume'], resume_template_path, 'outputs/resume.docx')
-    cover_path = build_cover_letter(data['cover_letter'], cover_letter_template_path, 'outputs/cover_letter.docx')
+    if not os.path.exists(resume_template):
+        return jsonify({"error": "Resume template missing"}), 500
 
+    if not os.path.exists(cover_template):
+        return jsonify({"error": "Cover letter template missing"}), 500
 
-    return {
-        'resume_path': resume_path,
-        'cover_letter_path': cover_path
-    }
+    resume_path = build_resume(data['resume'], resume_template, resume_out)
+    cover_path = build_cover_letter(data['cover_letter'], cover_template, cover_out)
+
+    return jsonify({
+        "resume_path": resume_path,
+        "cover_letter_path": cover_path
+    })
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
