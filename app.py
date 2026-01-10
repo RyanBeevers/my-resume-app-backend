@@ -184,6 +184,22 @@ def generate_resume_text():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/generate_docs', methods=['POST'])
+def generate_docs():
+    data = request.json  # {resume: {...}, cover_letter: {...}}
+
+    resume_path = build_resume(data['resume'], 'templates/resume_template.docx', 'outputs/resume.docx')
+    cover_path = build_cover_letter(data['cover_letter'], 'templates/cover_letter_template.docx', 'outputs/cover_letter.docx')
+
+    return {
+        'resume_path': resume_path,
+        'cover_letter_path': cover_path
+    }
+
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    return send_file(f"outputs/{filename}", as_attachment=True)
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
@@ -258,19 +274,3 @@ def build_cover_letter(json_data, template_path, output_path):
 
     doc.save(output_path)
     return output_path
-
-@app.route('/generate_docs', methods=['POST'])
-def generate_docs():
-    data = request.json  # {resume: {...}, cover_letter: {...}}
-
-    resume_path = build_resume(data['resume'], 'templates/resume_template.docx', 'outputs/resume.docx')
-    cover_path = build_cover_letter(data['cover_letter'], 'templates/cover_letter_template.docx', 'outputs/cover_letter.docx')
-
-    return {
-        'resume_path': resume_path,
-        'cover_letter_path': cover_path
-    }
-
-@app.route('/download/<filename>', methods=['GET'])
-def download_file(filename):
-    return send_file(f"outputs/{filename}", as_attachment=True)
