@@ -17,6 +17,9 @@ CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io*", "h
 
 LLAMA_BIN = "/home/ryan2914/llama.cpp/build/bin/llama-run"
 MODEL_PATH = "file:///home/ryan2914/llama.cpp/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
 
 try:
     client = MongoClient(
