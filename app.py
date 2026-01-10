@@ -260,8 +260,14 @@ def build_cover_letter(json_data, template_path, output_path):
 def generate_docs():
     data = request.json  # {resume: {...}, cover_letter: {...}}
 
-    resume_path = build_resume(data['resume'], 'templates/resume_template.docx', 'outputs/resume.docx')
-    cover_path = build_cover_letter(data['cover_letter'], 'templates/cover_letter_template.docx', 'outputs/cover_letter.docx')
+    TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+
+    resume_template_path = os.path.join(TEMPLATE_DIR, 'resume_template.docx')
+    cover_letter_template_path = os.path.join(TEMPLATE_DIR, 'cover_letter_template.docx')
+
+    resume_path = build_resume(data['resume'], resume_template_path, 'outputs/resume.docx')
+    cover_path = build_cover_letter(data['cover_letter'], cover_letter_template_path, 'outputs/cover_letter.docx')
+
 
     return {
         'resume_path': resume_path,
