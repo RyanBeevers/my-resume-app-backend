@@ -13,7 +13,9 @@ from docx import Document
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io*", "http://raspberrypi.local:4200"])
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+# CORS(app, origins=["http://localhost:4200", "https://ryanbeevers.github.io*", "http://raspberrypi.local:4200"])
 
 LLAMA_BIN = "/home/ryan2914/llama.cpp/build/bin/llama-run"
 MODEL_PATH = "file:///home/ryan2914/llama.cpp/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
@@ -258,9 +260,6 @@ def build_cover_letter(json_data, template_path, output_path):
 
     doc.save(output_path)
     return output_path
-
-from flask import Flask, request, send_file
-
 
 @app.route('/generate_docs', methods=['POST'])
 def generate_docs():
