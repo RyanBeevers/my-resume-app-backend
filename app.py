@@ -12,6 +12,8 @@ from docx import Document
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 import certifi
+from docx.enum.style import WD_STYLE_TYPE
+
 
 
 load_dotenv()
@@ -222,6 +224,11 @@ def add_bullets(doc, placeholder, bullets):
     from docx.oxml import OxmlElement
     from docx.text.paragraph import Paragraph
 
+    style_name = "List Bullet"
+    # Check if style exists in the document
+    if style_name not in [s.name for s in doc.styles if s.type == WD_STYLE_TYPE.PARAGRAPH]:
+        style_name = "Normal"
+
     for paragraph in doc.paragraphs:
         if placeholder in paragraph.text:
             paragraph.text = ""
@@ -231,7 +238,7 @@ def add_bullets(doc, placeholder, bullets):
                 new_p = OxmlElement("w:p")
                 parent.insert(idx + 1, new_p)
                 para = Paragraph(new_p, paragraph._parent)
-                para.style = "List Bullet"
+                para.style = style_name
                 para.add_run(bullet)
                 idx += 1
             break
