@@ -303,7 +303,7 @@ def build_cover_letter(json_data, template_path, output_dir):
 # ------------------------------
 # Flask Endpoints
 # ------------------------------
-@APP.route("/generate_docs", methods=["POST"])
+@app.route("/generate_docs", methods=["POST"])
 def generate_docs():
     data = request.json
 
@@ -336,7 +336,7 @@ def generate_docs():
     )
 
 
-@APP.route("/download/<filename>", methods=["GET"])
+@app.route("/download/<filename>", methods=["GET"])
 def download_file(filename):
     return send_file(os.path.join(OUTPUT_DIR, filename), as_attachment=True)
 
