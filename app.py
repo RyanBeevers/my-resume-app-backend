@@ -194,23 +194,24 @@ def generate_resume_text():
 
 
 def replace_placeholder(doc, placeholder, replacement):
-    found = False
+    replaced = False
 
+    # Paragraphs
     for paragraph in doc.paragraphs:
         if placeholder in paragraph.text:
             paragraph.text = paragraph.text.replace(placeholder, replacement)
-            found = True
+            replaced = True
 
+    # Tables
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    if placeholder in paragraph.text:
-                        paragraph.text = paragraph.text.replace(placeholder, replacement)
-                        found = True
+                if placeholder in cell.text:
+                    cell.text = cell.text.replace(placeholder, replacement)
+                    replaced = True
 
-    if not found:
-        raise ValueError(f"Placeholder not found: {placeholder}")
+    if not replaced:
+        print(f"Warning: Placeholder not found: {placeholder}")
 
     return doc
 
