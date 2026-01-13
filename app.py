@@ -1,15 +1,18 @@
-from flask import Flask, request, jsonify, send_file
-from pymongo import MongoClient
-from datetime import datetime
-from pymongo.errors import ServerSelectionTimeoutError
-from dotenv import load_dotenv
-from flask_cors import CORS
-from user_agents import parse
-import certifi
 import os
+import io
 import subprocess
+import zipfile
+from datetime import datetime
+
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
+from dotenv import load_dotenv
+
 from docx import Document
-from zipfile import ZipFile
+from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
+import certifi
+
 
 load_dotenv()
 
@@ -190,43 +193,52 @@ def generate_resume_text():
         return jsonify({"error": str(e)}), 500
 
 
-# Replace a single placeholder in doc
 def replace_placeholder(doc, placeholder, replacement):
+    found = False
+
     for paragraph in doc.paragraphs:
-        for run in paragraph.runs:
-            if placeholder in run.text:
-                run.text = run.text.replace(placeholder, replacement)
+        if placeholder in paragraph.text:
+            paragraph.text = paragraph.text.replace(placeholder, replacement)
+            found = True
 
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
-                    for run in paragraph.runs:
-                        if placeholder in run.text:
-                            run.text = run.text.replace(placeholder, replacement)
+                    if placeholder in paragraph.text:
+                        paragraph.text = paragraph.text.replace(placeholder, replacement)
+                        found = True
+
+    if not found:
+        raise ValueError(f"Placeholder not found: {placeholder}")
 
     return doc
 
-
-# Add bulleted list under a placeholder
-def add_bullets(doc, placeholder, bullets):
+def replace_with_bullets(doc, placeholder, header_text, bullets):
     for paragraph in doc.paragraphs:
         if placeholder in paragraph.text:
-            paragraph.text = paragraph.text.replace(placeholder, "")
+            paragraph.text = paragraph.text.replace(placeholder, header_text)
+
+            insert_after = paragraph
             for bullet in bullets:
-                p = paragraph.insert_paragraph_after(bullet)
+                p = insert_after.insert_paragraph_after(bullet)
                 p.style = 'List Bullet'
-            break
-    return doc
+                insert_after = p
+
+            return doc
+
+    raise ValueError(f"Experience placeholder not found: {placeholder}")
 
 def validate_docx(path):
     with ZipFile(path, 'r') as z:
-        z.testzip()
+        bad = z.testzip()
+        if bad:
+            raise ValueError(f"Corrupt DOCX zip entry: {bad}")
 
-def build_resume(json_data, template_path, output_path):
+def build_resume(json_data, template_path, output_dir):
     doc = Document(template_path)
 
-    # Header & summary
+    # Header
     doc = replace_placeholder(doc, '{{NAME}}', json_data['header']['name'])
     doc = replace_placeholder(doc, '{{TITLE}}', json_data['header']['title'])
     doc = replace_placeholder(doc, '{{TAGLINE}}', json_data['header']['tagline'])
@@ -235,10 +247,15 @@ def build_resume(json_data, template_path, output_path):
 
     # Experience
     for idx, exp in enumerate(json_data['experience']):
-        placeholder = f'{{EXP_{idx+1}}}'
-        exp_text = f"{exp['company']}, {exp['role']} ({exp['dates']})"
-        doc = replace_placeholder(doc, placeholder, exp_text)
-        doc = add_bullets(doc, placeholder, exp['bullets'])
+        placeholder = f'{{{{EXP_{idx + 1}}}}}'
+        header = f"{exp['company']} — {exp['role']} ({exp['dates']})"
+
+        doc = replace_with_bullets(
+            doc,
+            placeholder,
+            header,
+            exp['bullets']
+        )
 
     # Skills
     skills = json_data['skills']
@@ -249,30 +266,36 @@ def build_resume(json_data, template_path, output_path):
     doc = replace_placeholder(doc, '{{DATABASE_SKILLS}}', ', '.join(skills.get('databases', [])))
     doc = replace_placeholder(doc, '{{TOOLS_SKILLS}}', ', '.join(skills.get('tools_collaboration', [])))
 
+    filename = f"resume_{uuid.uuid4()}.docx"
+    output_path = os.path.join(output_dir, filename)
+
     doc.save(output_path)
     validate_docx(output_path)
-    return output_path
 
-def build_cover_letter(json_data, template_path, output_path):
+    return filename
+
+def build_cover_letter(json_data, template_path, output_dir):
     doc = Document(template_path)
 
-    # Recipient
     doc = replace_placeholder(doc, '{{COMPANY}}', json_data['recipient']['company'])
     doc = replace_placeholder(doc, '{{ROLE}}', json_data['recipient']['role'])
 
-    # Body
     doc = replace_placeholder(doc, '{{OPENING_PARAGRAPH}}', json_data['opening_paragraph'])
+
     for i, para in enumerate(json_data['body_paragraphs']):
-        placeholder = f'{{BODY_PARAGRAPH_{i+1}}}'
+        placeholder = f'{{{{BODY_PARAGRAPH_{i + 1}}}}}'
         doc = replace_placeholder(doc, placeholder, para)
 
-    # Closing & signature
     doc = replace_placeholder(doc, '{{CLOSING_PARAGRAPH}}', json_data['closing_paragraph'])
     doc = replace_placeholder(doc, '{{NAME}}', json_data['signature']['name'])
 
+    filename = f"cover_letter_{uuid.uuid4()}.docx"
+    output_path = os.path.join(output_dir, filename)
+
     doc.save(output_path)
     validate_docx(output_path)
-    return output_path
+
+    return filename
 
 @app.route('/generate_docs', methods=['POST'])
 def generate_docs():
@@ -281,21 +304,42 @@ def generate_docs():
     resume_template = os.path.join(TEMPLATE_DIR, "resume_template.docx")
     cover_template = os.path.join(TEMPLATE_DIR, "cover_letter_template.docx")
 
-    resume_out = os.path.join(OUTPUT_DIR, "resume.docx")
-    cover_out = os.path.join(OUTPUT_DIR, "cover_letter.docx")
+    # Build docs (overwrite is fine per your note)
+    resume_path = os.path.join(OUTPUT_DIR, "resume.docx")
+    cover_path = os.path.join(OUTPUT_DIR, "cover_letter.docx")
 
-    resume_path = build_resume(data['resume'], resume_template, resume_out)
-    cover_path = build_cover_letter(data['cover_letter'], cover_template, cover_out)
+    build_resume(data['resume'], resume_template, OUTPUT_DIR)
+    build_cover_letter(data['cover_letter'], cover_template, OUTPUT_DIR)
 
-    return jsonify({
-        "resume_path": resume_path,
-        "cover_letter_path": cover_path
-    })
+    # ZIP in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        zipf.write(resume_path, arcname="Resume.docx")
+        zipf.write(cover_path, arcname="Cover Letter.docx")
+
+    zip_buffer.seek(0)
+
+    # Filename: 01-12-2026 - Company Name.zip
+    company = data['cover_letter']['recipient']['company']
+    safe_company = "".join(c for c in company if c.isalnum() or c in " -_").strip()
+
+    date_str = datetime.now().strftime("%m-%d-%Y")
+    zip_filename = f"{date_str} - {safe_company}.zip"
+
+    return send_file(
+        zip_buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=zip_filename
+    )
 
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
-    return send_file(f"outputs/{filename}", as_attachment=True)
+    return send_file(
+        os.path.join(OUTPUT_DIR, filename),
+        as_attachment=True
+    )
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

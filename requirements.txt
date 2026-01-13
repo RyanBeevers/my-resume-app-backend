@@ -1,9 +1,8 @@
-flask
-pymongo
-python-dotenv
+Flask
 flask-cors
-certifi
+python-dotenv
+python-docx
+pymongo
 dnspython
-user_agentsgi
-docx
-zipfile
+certifi
+user-agents
